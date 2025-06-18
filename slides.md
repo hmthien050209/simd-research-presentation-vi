@@ -22,30 +22,12 @@ class: text-left
 hideInToc: true
 ---
 
-<img src="/assets/img/vnin-logo.jpg" alt="vnin logo" class="h-22 absolute top-0 left-0" />
-<img src="/assets/img/conference.png" alt="conference logo" class="h-22 absolute top-0 right-18" />
+<img src="/img/vnin-logo.jpg" alt="vnin logo" class="h-22 absolute top-0 left-0" />
+<img src="/img/conference.png" alt="conference logo" class="h-22 absolute top-0 right-18" />
 
 # Accelerating Online Multiple-Choice Scoring: A SIMD Optimization on x86_64 Architectures
 
 Hoàng Minh Thiên
-
----
-hideInToc: true
-layout: image-left
-image: /assets/img/avatar.jpg
----
-
-# About me
-
-Hello, I'm Hoàng Minh Thiên
-
-- I'm an Interdisciplinary Informatics student at VNU-HCM High School for the Gifted.
-- I love doing software optimizations (especially low-level ones)
-- I also love learning about web development and AI
-- My website: https://hmthien050209.github.io
-- My emails:
-    - hoangminhthien05022009@gmail.com
-    - student242331@ptnk.edu.vn
 
 ---
 hideInToc: true
@@ -76,7 +58,7 @@ hideInToc: true
 
 # The solutions
 
-- Modern CPUs provide Single Instruction, Multiple Data (instructions) for speeding up repetitive workload
+- Modern CPUs provide single-instruction, multiple-data (SIMD) for speeding up repetitive workload
 
 → There is room for improvements here!
 
@@ -216,7 +198,7 @@ layout: intro
 As defined by Intel® Intrinsics Guide:
 
 > Compute the absolute differences of packed **unsigned** 8-bit integers in `a` and `b`, then horizontally sum each
-> consecutive 8 differences to produce four **unsigned** 16-bit integers, and pack these unsigned 16-bit integers in the
+> consecutive 8 differences to produce four **unsigned** 16-bit integers, and pack these **unsigned** 16-bit integers in the
 > low 16 bits of 64-bit elements in `dst`.
 
 Symbol:
@@ -248,107 +230,6 @@ Note:
 
 - `_mm256_setzero_si256` is an intrinsic to create a new, zeroed `__m256i`.
 - `_mm512_sad_epu8` and `_mm512_setzero_si512` has the same functionality to this 256-bit variant.
-
----
-
-## `_mm256_extract_epi16` intrinsic
-
-This intrinsic extracts a 16-bit integer at the specified index.
-
-Symbol:
-
-```cpp
-int _mm256_extract_epi16 (__m256i a, const int index)
-```
-
-Example:
-
-<div class="font-mono">
-
-| Vector/INT8 | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ... | 31   |
-|-------------|------|------|------|------|------|------|------|------|-----|------|
-| A           | 0x24 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 |     | 0x00 |
-
-index = 0
-
-result = 0x24
-</div>
-
-→ By calling `_mm256_extract_epi16(A, 0)`, `_mm256_extract_epi16(A, 4)`, `_mm256_extract_epi16(A, 8)`,
-`_mm256_extract_epi16(A, 12)`, we've got the sum of all four groups!
-
----
-
-## `_mm512_cmpeq_epi8_mask` intrinsic
-
-This intrinsic compares groups of 8-bit integers in two vectors `A` and `B`, and return a mask with of `1` for equal and
-`0` otherwise.
-
-Symbol:
-
-```cpp
-__mmask64 _mm512_cmpeq_epi8_mask (__m512i a, __m512i b)
-```
-
-Example:
-
-<div class="font-mono">
-
-| Vector/INT8 | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ... | 63   |
-|-------------|------|------|------|------|------|------|------|------|-----|------|
-| A           | 0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x07 | 0x08 |     | 0x20 |
-| B           | 0x01 | 0x00 | 0x03 | 0x00 | 0x05 | 0x00 | 0x07 | 0x00 |     | 0x00 |
-
-result = 0b10101010...0 (64 bits)
-</div>
-
----
-
-## `_mm512_maskz_mov_epi8` intrinsic
-
-As defined by Intel® Intrinsics Guide:
-
-> Move packed 8-bit integers from `a` into `dst` using zeromask `k` (elements are zeroed out when the corresponding mask
-> bit is not set).
-
-Symbol:
-
-```cpp
-__m512i _mm512_maskz_mov_epi8 (__mmask64 k, __m512i a)
-```
-
-Example:
-
-<div class="font-mono text-[12px]">
-
-| Vector/INT8 | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ... | 63   |
-|-------------|------|------|------|------|------|------|------|------|-----|------|
-| A           | 0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x07 | 0x08 |     | 0x20 |
-
-k = 0b10101010...0 (64-bit)
-
-| Vector/INT8  | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ... | 63   |
-|--------------|------|------|------|------|------|------|------|------|-----|------|
-| Result (DST) | 0x01 | 0x00 | 0x03 | 0x00 | 0x05 | 0x00 | 0x07 | 0x00 |     | 0x00 |
-
-</div>
-
----
-
-## `_mm512_extracti32x8_epi32` intrinsic
-
-This intrinsic extracts a group of eight 32-bit **signed** integers at the specified index.
-
-Symbol:
-
-```cpp
-__m256i _mm512_extracti32x8_epi32 (__m512i a, int imm8)
-```
-
-→ By calling `_mm512_extracti32x8_epi32(A, 0)`, we've extracted the low 256-bit from that vector. With `imm8 = 1`, we
-will extract the high 256-bit.
-
-Note: `imm8` **MUST** be specified at compile time!
 
 ---
 
@@ -534,10 +415,8 @@ std::vector<int32_t> score(const std::vector<ByteArray> &exams,
                 correct_answers[j + 5], correct_answers[j + 4],
                 correct_answers[j + 3], correct_answers[j + 2],
                 correct_answers[j + 1], correct_answers[j]);
-            // -1 = 0b1111'1111'1111...1111: full 1s
-            v1 = _mm512_mask_mov_epi8(_mm512_setzero_si512(), 
-                                      _mm512_cmpeq_epi8_mask(v1, v2),
-                                      _mm512_set1_epi64(-1));
+            
+            __mmask64 mask = _mm512_cmpeq_epi8_mask(v1, v2);
             v2 = _mm512_set_epi8(
                 points[j + 63], points[j + 62], points[j + 61], points[j + 60],
                 points[j + 59], points[j + 58], points[j + 57], points[j + 56],
@@ -555,6 +434,7 @@ std::vector<int32_t> score(const std::vector<ByteArray> &exams,
                 points[j + 11], points[j + 10], points[j + 9], points[j + 8],
                 points[j + 7], points[j + 6], points[j + 5], points[j + 4],
                 points[j + 3], points[j + 2], points[j + 1], points[j]);
+            v1 = _mm512_maskz_mov_epi8(mask, v2);
 
             v1 = _mm512_and_si512(v1, v2);
             v1 = _mm512_sad_epu8(v1, _mm512_setzero_si512());
@@ -608,17 +488,17 @@ layout: intro
 
 ---
 layout: image
-image: /assets/img/benchmark_results_avx512.json_100000.png
+image: /img/benchmark_results_avx512.json_100000.png
 ---
 
 ---
 layout: image
-image: /assets/img/benchmark_results_avx512.json_5000000.png
+image: /img/benchmark_results_avx512.json_5000000.png
 ---
 
 ---
 layout: image
-image: /assets/img/benchmark_results_avx512.json_10000000.png
+image: /img/benchmark_results_avx512.json_10000000.png
 ---
 
 ---
@@ -638,12 +518,14 @@ using ByteArray = std::vector<char>;
 ```
 
 <v-clicks>
+
 Problem: `std::vector` access time is slower than C arrays. How can we achieve:
 
 - The ease of use of `std::vector`?
 - The performance of C arrays?
 
 → Create a new data structure ourselves!
+
 </v-clicks>
 
 ---
@@ -850,17 +732,19 @@ layout: intro
 
 ---
 layout: image
-image: /assets/img/benchmark_results_avx512_new_struct.json_100000.png
+image: /img/benchmark_results_avx512_new_struct.json_100000.png
 ---
 
 ---
 layout: image
-image: /assets/img/benchmark_results_avx512_new_struct.json_5000000.png
+image: /img/benchmark_results_avx512_new_struct.json_5000000.png
 ---
 
 ---
 layout: image
-image: /assets/img/benchmark_results_avx512_new_struct.json_10000000.png
+image: /img/benchmark_results_avx512_new_struct.json_10000000.png
+---
+
 ---
 
 ## Drawbacks
@@ -875,7 +759,7 @@ image: /assets/img/benchmark_results_avx512_new_struct.json_10000000.png
 # Conclusions
 
 - SIMD utilization, if done correctly, can bring up to 3-7x performance improvement.
-- We can use more memory to achieve better performance (with custom, correctly aligned data structures).
+- Higher-memory, higher-performance (with custom, correctly aligned data structures).
 - We can't entirely depend on GCC's auto-vectorization, yet.
 - AVX512 doesn't provide a big boost of performance like advertised (because of the loading overhead).
 
@@ -883,7 +767,7 @@ image: /assets/img/benchmark_results_avx512_new_struct.json_10000000.png
 
 # Notes
 
-- The code repository is at https://github.com/hmthien050209/simd-research (with the older `std::vector` based version
+- The code repository is at https://github.com/hmthien050209/simd-research (with the older `std::vector<char>`-based version
   located on branch `avx512_vec`)
 - For our operation, we don't need to care about number signedness, because our points are positive
 - There are also `__m128d`, `__m256d`, and `__m512d`, which are double-precision floating point data types. For now,
@@ -896,7 +780,8 @@ Available: https://www.tomshardware.com/news/3dnow-simd-extensions-phenom-sse,11
 ---
 
 # Acknowledgements
-- Đoàn Ngọc Bình Minh (my friend at PTNK) for providing me a VM on his laptop for the above benchmarks.
+
+- Đoàn Ngọc Bình Minh for providing me a VM on his laptop for the above benchmarks.
 - Intel&reg; Intrinsics Guide.
 - Intel&reg; 64 and IA-32 Architectures Software Developer's Manual Volume 1: Basic Architecture.
 
