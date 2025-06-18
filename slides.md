@@ -22,6 +22,9 @@ class: text-left
 hideInToc: true
 ---
 
+<img src="/assets/img/vnin-logo.jpg" alt="vnin logo" class="h-22 absolute top-0 left-0" />
+<img src="/assets/img/conference.png" alt="conference logo" class="h-22 absolute top-0 right-18" />
+
 # Accelerating Online Multiple-Choice Scoring: A SIMD Optimization on x86_64 Architectures
 
 Hoàng Minh Thiên
@@ -188,26 +191,10 @@ layout: intro
 
 ## SIMD in x86 CPUs
 
-- Normal assembly instructions are **scalar** ones: takes one `A` and `B` and produce a result `C`
+- Normal assembly instructions are **scalar** ones: takes one `A` and `B` and produce a result `C`. For example:
+  `1 + 2 = 3`
 - Single-instruction, multiple-data (SIMD) means that the instructions take multiple `A` and `B` and produce multiple
-  result `C`
-
----
-
-## The evolutions of SIMD instructions in x86 CPUs:
-
-- MMX: introduced into the IA-32 architecture in the Pentium II and Pentium with MMX family, with 64-bit registers (
-  `mm0` to `mm7`). [^1] pp. 9-1
-- SSE, SSE2, SSE3, SSE4, SSE4.2: the family of Streaming SIMD Extensions, with 128-bit registers. (with eight 128-bit
-  registers in non-64-bit operating modes, and 16 128-bit registers in 64-bit operating mode). [^1] pp. 10-1
-- AVX, AVX2: the family of Advanced Vector Extensions, with support for 256-bit vector registers. (`ymm0` to `ymm7`
-  in 32-bit or less, `ymm0` to `ymm15` in 64-bit mode). [^1] pp. 14-1
-- AVX512: the family of AVX with support for 512-bit vector registers (`zmm0` to `zmm7` in 32-bit or less, `zmm0` to
-  `zmm31` in 64-bit mode). [^1] pp. 15-1
-
-[^1]: Intel Corporation, *Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 1: Basic Architecture*,
-Order Number 253665-087US, Intel Corporation, March 2025. Accessed: Jun. 17, 2025. [Online].
-Available: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+  result `C`. For example: `[1, 2, 3] + [4, 5, 6] = [5, 7, 9]`
 
 ---
 
@@ -224,94 +211,6 @@ Available: https://www.intel.com/content/www/us/en/developer/articles/technical/
 
 ---
 
-## `_mm256_set_epi8`, `_mm512_set_epi8` intrinsic
-
-This intrinsic is used to **sequentially** load packs of 8-bit integers into the 256-bit/512-bit vectors.
-
-Symbols:
-
-```cpp
-__m256i _mm256_set_epi8 (char e31, char e30, char e29, char e28, char e27, char e26, char e25, char e24, char e23, char e22, char e21, char e20, char e19, char e18, char e17, char e16, char e15, char e14, char e13, char e12, char e11, char e10, char e9, char e8, char e7, char e6, char e5, char e4, char e3, char e2, char e1, char e0)
-__m512i _mm512_set_epi8 (char e63, char e62, char e61, char e60, char e59, char e58, char e57, char e56, char e55, char e54, char e53, char e52, char e51, char e50, char e49, char e48, char e47, char e46, char e45, char e44, char e43, char e42, char e41, char e40, char e39, char e38, char e37, char e36, char e35, char e34, char e33, char e32, char e31, char e30, char e29, char e28, char e27, char e26, char e25, char e24, char e23, char e22, char e21, char e20, char e19, char e18, char e17, char e16, char e15, char e14, char e13, char e12, char e11, char e10, char e9, char e8, char e7, char e6, char e5, char e4, char e3, char e2, char e1, char e0)
-```
-
-## `_mm256_loadu_epi8`, `_mm512_loadu_epi8` intrinsic
-
-This intrinsic is used to load packs of 8-bit integers into the 256-bit/512-bit vectors **(a whole chunk!)**
-
-Symbols:
-
-```cpp
-__m256i _mm256_loadu_epi8 (void const* mem_addr)
-__m512i _mm512_loadu_epi8 (void const* mem_addr)
-```
-
----
-
-## `_mm512_storeu_si512` intrinsic
-
-This intrinsic stores a 512-bit vector `a` into another memory region specified with `mem_addr` (can be a C array of
-eight 64-bit **unsigned** integers).
-
-Symbol:
-
-```cpp
-void _mm512_storeu_si512 (void* mem_addr, __m512i a)
-```
-
----
-
-## `_mm256_cmpeq_epi8` intrinsic
-
-This intrinsic compares groups of 8-bit integers in two vectors `A` and `B`, and mark `0xff` if equal, and `0`
-otherwise.
-
-Symbol:
-
-```cpp
-__m256i _mm256_cmpeq_epi8 (__m256i a, __m256i b)
-```
-
-Example:
-
-<div class="font-mono">
-
-| Vector/INT8 | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ... | 31   |
-|-------------|------|------|------|------|------|------|------|------|-----|------|
-| A           | 0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x07 | 0x08 |     | 0x20 |
-| B           | 0x01 | 0x00 | 0x03 | 0x00 | 0x05 | 0x00 | 0x07 | 0x00 |     | 0x00 |
-| Result      | 0xff | 0x00 | 0xff | 0x00 | 0xff | 0x00 | 0xff | 0x00 |     | 0x00 |
-
-</div>
-
----
-
-## `_mm256_and_si256`, `_mm512_and_si512` intrinsic
-
-- This intrinsic calculate bitwise `AND` on two vectors `A` and `B`.
-- We're using this for marking the points to be summed up at the end.
-
-Symbols:
-
-```cpp
-__m256i _mm256_and_si256 (__m256i a, __m256i b)
-__m512i _mm512_and_si512 (__m512i a, __m512i b)
-```
-
-Example (`_mm256_and_si256`):
-
-<div class="font-mono">
-
-| Vector/INT8 | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | ... | 31   |
-|-------------|------|------|------|------|------|------|------|------|-----|------|
-| A           | 0xff | 0x00 | 0xff | 0x00 | 0xff | 0x00 | 0xff | 0x00 |     | 0x00 |
-| B           | 0x01 | 0x01 | 0x01 | 0x01 | 0x01 | 0x01 | 0x01 | 0x01 |     | 0x01 |
-| Result      | 0x01 | 0x00 | 0x01 | 0x00 | 0x01 | 0x00 | 0x01 | 0x00 |     | 0x00 |
-
-</div>
-
----
-
 ## `_mm256_sad_epu8` intrinsic
 
 As defined by Intel® Intrinsics Guide:
@@ -325,6 +224,8 @@ Symbol:
 ```cpp
 __m256i _mm256_sad_epu8 (__m256i a, __m256i b)
 ```
+
+→ This highlights the complex nature of x86_64 architecture: one instruction does multiple operations
 
 ---
 
@@ -684,7 +585,7 @@ std::vector<int32_t> score(const std::vector<ByteArray> &exams,
 
 ## Benchmarking system
 
-- Ubuntu Server 24.04.2 LTS x86_64 6.8.0-60-generic
+- Ubuntu 24.04.2 LTS x86_64 6.8.0-60-generic
 - 11th Gen Intel i5-1135G7 @ 2.419 GHz
 - 4 GB RAM
 - Enabled compiler flags:
@@ -698,8 +599,6 @@ std::vector<int32_t> score(const std::vector<ByteArray> &exams,
 
 - Benchmarked using Google's benchmark library, with `BENCHMARK_LTO=ON`.
 - We will use **real time** (wall time), not CPU time.
-
-(Note: this is a VM that I borrowed from my friend).
 
 ---
 layout: intro
@@ -737,6 +636,15 @@ layout: intro
 
 using ByteArray = std::vector<char>;
 ```
+
+<v-clicks>
+Problem: `std::vector` access time is slower than C arrays. How can we achieve:
+
+- The ease of use of `std::vector`?
+- The performance of C arrays?
+
+→ Create a new data structure ourselves!
+</v-clicks>
 
 ---
 
@@ -779,62 +687,8 @@ class ByteArray {
     ByteArray() : _size(0), _capacity(0), _block_count(0), _values(nullptr) {}
     // Initialize a ByteArray with `size`
     explicit ByteArray(const size_t &size) { construct(size); }
-
-    // Initializer list constructor
-    ByteArray(const std::initializer_list<int8_t> &list) {
-        construct(list.size());
-        std::copy(list.begin(), list.end(), _values);
-    }
-
-    // Initialize a ByteArray with `size`, filled with `value`
-    ByteArray(const size_t &size, const int8_t &value) {
-        construct(size);
-        std::fill_n(_values, _size, value);
-    }
-
-    // Copy constructor
-    ByteArray(const ByteArray &other) {
-        construct(other._size);
-        std::memcpy(_values, other._values, other._size * sizeof(int8_t));
-    }
-
-    // Move constructor
-    ByteArray(ByteArray &&other) noexcept
-        : _size(other._size),
-          _capacity(other._capacity),
-          _block_count(other._block_count),
-          _values(other._values) {
-        other._values = nullptr;
-        other._size = 0;
-        other._capacity = 0;
-        other._block_count = 0;
-    }
-
-    // Copy assignment operator
-    ByteArray &operator=(const ByteArray &other) {
-        if (this != &other) {
-            free(_values);
-            construct(other._size);
-            std::memcpy(_values, other._values, other._size * sizeof(int8_t));
-        }
-        return *this;
-    }
-
-    // Move assignment operator
-    ByteArray &operator=(ByteArray &&other) noexcept {
-        if (this != &other) {
-            free(_values);
-            _size = other._size;
-            _capacity = other._capacity;
-            _block_count = other._block_count;
-            _values = other._values;
-            other._values = nullptr;
-            other._size = 0;
-            other._capacity = 0;
-            other._block_count = 0;
-        }
-        return *this;
-    }
+    
+    // Some more constructors for copy/copy-move/intializer list constructions...
 
     // Operators
     int8_t &operator[](const size_t &index) const { return _values[index]; }
@@ -855,22 +709,16 @@ class ByteArray {
     // Get the `_values` array for direct access
     [[nodiscard]] int8_t *data() const { return _values; }
 
-    // Iterators
+    // Iterators (for range-based for loops)
     [[nodiscard]] int8_t *begin() const { return _values; }
     [[nodiscard]] int8_t *end() const { return _values + _size; }
 
     ~ByteArray() {
+        // Rule of thumb: free after use
         if (_values) free(_values);
     }
 };
 ```
-
----
-
-## Drawbacks
-
-- More complex to set up.
-- We're using more memory than required (if the number of MCQs is not a multiple of 32).
 
 ---
 layout: intro
@@ -1015,13 +863,20 @@ layout: image
 image: /assets/img/benchmark_results_avx512_new_struct.json_10000000.png
 ---
 
+## Drawbacks
+
+- More complex to set up.
+- We're using more memory than required (if the number of MCQs is not a multiple of 32). E.g. when the number of
+  questions is 200, the capacity will be raised to 224 (AVX2) or 256 (AVX512).
+- Need to reimplement many operator overloading (unlike prebuilt ones from `std`)
+
 ---
 
 # Conclusions
 
 - SIMD utilization, if done correctly, can bring up to 3-7x performance improvement.
 - We can use more memory to achieve better performance (with custom, correctly aligned data structures).
-- We can't entirely depend on the compiler's auto-vectorization, yet.
+- We can't entirely depend on GCC's auto-vectorization, yet.
 - AVX512 doesn't provide a big boost of performance like advertised (because of the loading overhead).
 
 ---
@@ -1037,6 +892,13 @@ image: /assets/img/benchmark_results_avx512_new_struct.json_10000000.png
 
 [^1]: M. Yam, “AMD drops 3DNow! support from future CPUs,” Tom’s Hardware, Aug. 24, 2010. [Online].
 Available: https://www.tomshardware.com/news/3dnow-simd-extensions-phenom-sse,11128.html
+
+---
+
+# Acknowledgements
+- Đoàn Ngọc Bình Minh (my friend at PTNK) for providing me a VM on his laptop for the above benchmarks.
+- Intel&reg; Intrinsics Guide.
+- Intel&reg; 64 and IA-32 Architectures Software Developer's Manual Volume 1: Basic Architecture.
 
 ---
 layout: end
